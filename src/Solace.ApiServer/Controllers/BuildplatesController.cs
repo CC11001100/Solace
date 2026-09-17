@@ -52,13 +52,13 @@ internal sealed partial class BuildplatesController : SolaceControllerBase
             return TypedResults.BadRequest();
         }
 
-        var CurrentProfileLevel = await _earthDb.Profiles
+        var currentProfileLevel = await _earthDb.Profiles
             .AsNoTracking()
             .Where(profile => profile.Id == profileId)
             .Select(profile => (int?)profile.Level)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (CurrentProfileLevel is null)
+        if (currentProfileLevel is null)
         {
             return TypedResults.NotFound();
         }
@@ -68,6 +68,7 @@ internal sealed partial class BuildplatesController : SolaceControllerBase
         var buildplates = await _earthDb.PlayerBuildplates
             .AsNoTracking()
             .Where(buildplate => buildplate.ProfileId == profileId)
+            .Select(buildplate => new { buildplate.TemplateId, buildplate.PreviewObjectId, buildplate.Id, buildplate.Size, buildplate.Offset, buildplate.BlocksPerMeter, buildplate.LastModified, })
             .ToListAsync(cancellationToken);
 
         var templateIds = buildplates
@@ -108,7 +109,7 @@ internal sealed partial class BuildplatesController : SolaceControllerBase
                 SurfaceOrientation.HORIZONTAL,
                 model,
                 template?.Order ?? 0,
-                CurrentProfileLevel < (template?.RequiredLevel ?? 1),
+                currentProfileLevel < (template?.RequiredLevel ?? 1),
                 template?.RequiredLevel ?? 1,
                 false,    // TODO
                 TimeFormatter.FormatTime(buildplate.LastModified),
@@ -449,11 +450,11 @@ internal sealed partial class BuildplatesController : SolaceControllerBase
             return TypedResults.NotFound();
         }
 
-        var buildplate = await _earthDb.PlayerBuildplates
+        var buildplateExists = await _earthDb.PlayerBuildplates
             .AsNoTracking()
-            .FirstOrDefaultAsync(buildplate => buildplate.Id == instanceInfo.BuildplateId && buildplate.ProfileId == profileId, cancellationToken: cancellationToken);
+            .AnyAsync(buildplate => buildplate.Id == instanceInfo.BuildplateId && buildplate.ProfileId == profileId, cancellationToken: cancellationToken);
 
-        if (buildplate is null)
+        if (!buildplateExists)
         {
             return TypedResults.NotFound();
         }
@@ -471,7 +472,9 @@ internal sealed partial class BuildplatesController : SolaceControllerBase
     {
         var buildplate = await _earthDb.PlayerBuildplates
             .AsNoTracking()
-            .FirstOrDefaultAsync(buildplate => buildplate.Id == buildplateId, cancellationToken);
+            .Where(buildplate => buildplate.Id == buildplateId && buildplate.ProfileId == profileId)
+            .Select(buildplate => new { buildplate.Night, })
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (buildplate is null)
         {
@@ -504,7 +507,9 @@ internal sealed partial class BuildplatesController : SolaceControllerBase
     {
         var sharedBuildplate = await _earthDb.SharedBuildplates
             .AsNoTracking()
-            .FirstOrDefaultAsync(sharedBuildplate => sharedBuildplate.Id == sharedBuildplateId, cancellationToken);
+            .Where(sharedBuildplate => sharedBuildplate.Id == sharedBuildplateId)
+            .Select(sharedBuildplate => new { sharedBuildplate.Night, })
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (sharedBuildplate is null)
         {
@@ -598,7 +603,9 @@ internal sealed partial class BuildplatesController : SolaceControllerBase
 
                     var buildplate = await _earthDb.PlayerBuildplates
                         .AsNoTracking()
-                        .FirstOrDefaultAsync(buildplate => buildplate.Id == instanceInfo.BuildplateId && buildplate.ProfileId == instanceInfo.PlayerId, cancellationToken);
+                        .Where(buildplate => buildplate.Id == instanceInfo.BuildplateId && buildplate.ProfileId == instanceInfo.PlayerId)
+                        .Select(buildplate => new { buildplate.Size, buildplate.Offset, buildplate.BlocksPerMeter, })
+                        .FirstOrDefaultAsync(cancellationToken);
 
                     if (buildplate is null)
                     {
@@ -615,7 +622,9 @@ internal sealed partial class BuildplatesController : SolaceControllerBase
                 {
                     var sharedBuildplate = await _earthDb.SharedBuildplates
                         .AsNoTracking()
-                        .FirstOrDefaultAsync(sharedBuildplate => sharedBuildplate.Id == instanceInfo.BuildplateId, cancellationToken);
+                        .Where(sharedBuildplate => sharedBuildplate.Id == instanceInfo.BuildplateId)
+                        .Select(sharedBuildplate => new { sharedBuildplate.Size, sharedBuildplate.Offset, sharedBuildplate.BlocksPerMeter, })
+                        .FirstOrDefaultAsync(cancellationToken);
 
                     if (sharedBuildplate is null)
                     {

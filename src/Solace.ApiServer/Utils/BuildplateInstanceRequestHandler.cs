@@ -225,7 +225,9 @@ internal sealed partial class BuildplateInstanceRequestHandler : IAsyncDisposabl
 
         var buildplate = await earthDb.PlayerBuildplates
             .AsNoTracking()
-            .FirstOrDefaultAsync(buildplate => buildplate.Id == buildplateId && buildplate.ProfileId == accountId, cancellationToken: cancellationToken);
+            .Where(buildplate => buildplate.Id == buildplateId && buildplate.ProfileId == accountId)
+            .Select(buildplate => new { buildplate.ServerDataObjectId, })
+            .FirstOrDefaultAsync(cancellationToken: cancellationToken);
 
         if (buildplate is null)
         {
@@ -250,7 +252,9 @@ internal sealed partial class BuildplateInstanceRequestHandler : IAsyncDisposabl
 
         var sharedBuildplate = await earthDb.SharedBuildplates
             .AsNoTracking()
-            .FirstOrDefaultAsync(sharedBuildplate => sharedBuildplate.Id == sharedBuildplateId, cancellationToken: cancellationToken);
+            .Where(sharedBuildplate => sharedBuildplate.Id == sharedBuildplateId)
+            .Select(sharedBuildplate => new { sharedBuildplate.ServerDataObjectId, })
+            .FirstOrDefaultAsync(cancellationToken: cancellationToken);
 
         if (sharedBuildplate is null)
         {
@@ -275,7 +279,9 @@ internal sealed partial class BuildplateInstanceRequestHandler : IAsyncDisposabl
 
         var encounterBuildplate = await earthDb.EncounterBuildplates
             .AsNoTracking()
-            .FirstOrDefaultAsync(encounterBuildplate => encounterBuildplate.Id == encounterBuildplateId, cancellationToken);
+            .Where(encounterBuildplate => encounterBuildplate.Id == encounterBuildplateId)
+            .Select(encounterBuildplate => new { encounterBuildplate.ServerDataObjectId, })
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (encounterBuildplate is null)
         {
@@ -326,7 +332,9 @@ internal sealed partial class BuildplateInstanceRequestHandler : IAsyncDisposabl
 
         var buildplateUnsafeForPreviewGenerator = await earthDb.PlayerBuildplates
             .AsNoTracking()
-            .FirstOrDefaultAsync(buildplate => buildplate.Id == buildplateId, cancellationToken);
+            .Where(buildplate => buildplate.Id == buildplateId)
+            .Select(buildplate => new { buildplate.Night, })
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (buildplateUnsafeForPreviewGenerator is null)
         {
@@ -691,9 +699,11 @@ internal sealed partial class BuildplateInstanceRequestHandler : IAsyncDisposabl
 
             await using var earthDb = await _earthDbFactory.CreateDbContextAsync(cancellationToken);
 
-            var profile = await earthDb.Profiles
+            var profileHealth = await earthDb.Profiles
                 .AsNoTracking()
-                .FirstAsync(profile => profile.Id == accountId, cancellationToken: cancellationToken);
+                .Where(profile => profile.Id == accountId)
+                .Select(profile => profile.Health)
+                .FirstAsync(cancellationToken: cancellationToken);
 
             var boosts = await earthDb.Boosts
                 .AsNoTracking()
@@ -702,7 +712,7 @@ internal sealed partial class BuildplateInstanceRequestHandler : IAsyncDisposabl
             var maxHealth = (float)Common.Utils.BoostUtils.GetMaxPlayerHealth(boosts, currentTime, _catalog);
 
             return new InitialPlayerStateResponse(
-                useHealth ? float.Min(profile.Health, maxHealth) : maxHealth,
+                useHealth ? float.Min(profileHealth, maxHealth) : maxHealth,
                 [.. boosts.ActiveBoosts
                 .Where(activeBoost => activeBoost is not null)
                 .Where(activeBoost => activeBoost!.StartTime + activeBoost.Duration >= currentTime)

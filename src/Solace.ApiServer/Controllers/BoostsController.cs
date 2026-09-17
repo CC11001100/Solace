@@ -9,7 +9,6 @@ using Solace.Db.Earth.Models.Player;
 using Solace.StaticData;
 using Effect = Solace.ApiServer.Types.Common.Effect;
 using Microsoft.EntityFrameworkCore;
-using Solace.Db.Earth.Models;
 using Solace.Common;
 
 namespace Solace.ApiServer.Controllers;
@@ -51,15 +50,20 @@ internal sealed partial class BoostsController : SolaceControllerBase
             .AsNoTracking()
             .FirstAsync(boosts => boosts.Id == accountId, cancellationToken: cancellationToken);
 
-        var profile = await _earthDb.Profiles
-            .AsTracking()
-            .FirstAsync(profile => profile.Id == accountId, cancellationToken: cancellationToken);
+        var profileHealth = await _earthDb.Profiles
+            .AsNoTracking()
+            .Where(profile => profile.Id == accountId)
+            .Select(profile => profile.Health)
+            .FirstAsync(cancellationToken: cancellationToken);
 
         var results = new ResultsEF.Builder();
 
-        if (PruneBoostsAndUpdateProfile(boosts, profile, requestStartedOn, _catalog))
+        if (PruneBoostsAndUpdateProfile(boosts, ref profileHealth, requestStartedOn, _catalog))
         {
-            await _earthDb.SaveChangesAsync(cancellationToken);
+            await _earthDb.Profiles
+                .Where(profile => profile.Id == accountId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(profile => profile.Health, profileHealth), cancellationToken);
+
             results.Profile();
         }
 
@@ -210,14 +214,20 @@ internal sealed partial class BoostsController : SolaceControllerBase
             .AsTracking()
             .FirstAsync(boosts => boosts.Id == accountId, cancellationToken: cancellationToken);
 
-        var profile = await _earthDb.Profiles
-            .AsTracking()
-            .FirstAsync(profile => profile.Id == accountId, cancellationToken: cancellationToken);
+        var profileHealth = await _earthDb.Profiles
+            .AsNoTracking()
+            .Where(profile => profile.Id == accountId)
+            .Select(profile => profile.Health)
+            .FirstAsync(cancellationToken: cancellationToken);
 
         var profileChanged = false;
 
-        if (PruneBoostsAndUpdateProfile(boosts, profile, requestStartedOn, _catalog))
+        if (PruneBoostsAndUpdateProfile(boosts, ref profileHealth, requestStartedOn, _catalog))
         {
+            await _earthDb.Profiles
+                .Where(profile => profile.Id == accountId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(profile => profile.Health, profileHealth), cancellationToken);
+
             profileChanged = true;
         }
 
@@ -329,14 +339,20 @@ internal sealed partial class BoostsController : SolaceControllerBase
             .AsTracking()
             .FirstAsync(boosts => boosts.Id == accountId, cancellationToken: cancellationToken);
 
-        var profile = await _earthDb.Profiles
-            .AsTracking()
-            .FirstAsync(profile => profile.Id == accountId, cancellationToken: cancellationToken);
+        var profileHealth = await _earthDb.Profiles
+            .AsNoTracking()
+            .Where(profile => profile.Id == accountId)
+            .Select(profile => profile.Health)
+            .FirstAsync(cancellationToken: cancellationToken);
 
         var profileChanged = false;
 
-        if (PruneBoostsAndUpdateProfile(boosts, profile, requestStartedOn, _catalog))
+        if (PruneBoostsAndUpdateProfile(boosts, ref profileHealth, requestStartedOn, _catalog))
         {
+            await _earthDb.Profiles
+                .Where(profile => profile.Id == accountId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(profile => profile.Health, profileHealth), cancellationToken);
+
             profileChanged = true;
         }
 
@@ -414,14 +430,20 @@ internal sealed partial class BoostsController : SolaceControllerBase
             .AsTracking()
             .FirstAsync(boosts => boosts.Id == accountId, cancellationToken: cancellationToken);
 
-        var profile = await _earthDb.Profiles
-            .AsTracking()
-            .FirstAsync(profile => profile.Id == accountId, cancellationToken: cancellationToken);
+        var profileHealth = await _earthDb.Profiles
+            .AsNoTracking()
+            .Where(profile => profile.Id == accountId)
+            .Select(profile => profile.Health)
+            .FirstAsync(cancellationToken: cancellationToken);
 
         var profileChanged = false;
 
-        if (PruneBoostsAndUpdateProfile(boosts, profile, requestStartedOn, _catalog))
+        if (PruneBoostsAndUpdateProfile(boosts, ref profileHealth, requestStartedOn, _catalog))
         {
+            await _earthDb.Profiles
+                .Where(profile => profile.Id == accountId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(profile => profile.Health, profileHealth), cancellationToken);
+
             profileChanged = true;
         }
 
@@ -451,9 +473,13 @@ internal sealed partial class BoostsController : SolaceControllerBase
         {
             profileChanged = true;
             var maxPlayerHealth = Common.Utils.BoostUtils.GetMaxPlayerHealth(boosts, requestStartedOn, _catalog);
-            if (profile.Health > maxPlayerHealth)
+            if (profileHealth > maxPlayerHealth)
             {
-                profile.Health = maxPlayerHealth;
+                profileHealth = maxPlayerHealth;
+
+                await _earthDb.Profiles
+                    .Where(profile => profile.Id == accountId)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(profile => profile.Health, profileHealth), cancellationToken);
             }
         }
 
@@ -466,7 +492,7 @@ internal sealed partial class BoostsController : SolaceControllerBase
         return TypedResults.Ok(new EarthApiResponse(new EarthUpdatesResponse(await results.BuildAsync(_earthDb, accountId, cancellationToken))));
     }
 
-    private static bool PruneBoostsAndUpdateProfile(BoostsEF boosts, ProfileEF profile, DateTimeOffset currentTime, Catalog catalog)
+    private static bool PruneBoostsAndUpdateProfile(BoostsEF boosts, ref int profilehealth, DateTimeOffset currentTime, Catalog catalog)
     {
         var profileChanged = false;
         var prunedBoosts = boosts.Prune(currentTime);
@@ -491,9 +517,9 @@ internal sealed partial class BoostsController : SolaceControllerBase
         }
 
         var maxPlayerHealth = Common.Utils.BoostUtils.GetMaxPlayerHealth(boosts, currentTime, catalog);
-        if (profile.Health > maxPlayerHealth)
+        if (profilehealth > maxPlayerHealth)
         {
-            profile.Health = maxPlayerHealth;
+            profilehealth = maxPlayerHealth;
             profileChanged = true;
         }
 

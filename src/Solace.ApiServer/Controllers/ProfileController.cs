@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Solace.ApiServer.Utils;
-using Solace.Common;
 using Solace.Db.Earth;
 using Microsoft.EntityFrameworkCore;
 using Solace.StaticData;
@@ -38,7 +37,9 @@ internal sealed class ProfileController : SolaceControllerBase
 
         var profile = await _earthDb.Profiles
             .AsNoTracking()
-            .FirstAsync(profile => profile.Id == accountId, cancellationToken: cancellationToken);
+            .Where(profile => profile.Id == accountId)
+            .Select(profile => new { profile.Level, profile.Experience, profile.Health })
+            .FirstAsync(cancellationToken: cancellationToken);
 
         var boosts = await _earthDb.Boosts
             .AsNoTracking()
@@ -51,7 +52,9 @@ internal sealed class ProfileController : SolaceControllerBase
         var maxPlayerHealth = Common.Utils.BoostUtils.GetMaxPlayerHealth(boosts, requestStartedOn, _staticData.Catalog);
         if (profile.Health > maxPlayerHealth)
         {
-            profile.Health = maxPlayerHealth;
+            await _earthDb.Profiles
+                .Where(profile => profile.Id == accountId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(profile => profile.Health, maxPlayerHealth), cancellationToken);
         }
 
         return TypedResults.Ok(new EarthApiResponse<Types.Profile.ProfileResponse>(new(
@@ -78,11 +81,13 @@ internal sealed class ProfileController : SolaceControllerBase
             return TypedResults.BadRequest();
         }
 
-        var profile = await _earthDb.Profiles
+        var rubies = await _earthDb.Profiles
             .AsNoTracking()
-            .FirstAsync(profile => profile.Id == accountId, cancellationToken: cancellationToken);
+            .Where(profile => profile.Id == accountId)
+            .Select(profile => new { profile.Rubies.Purchased, profile.Rubies.Earned, })
+            .FirstAsync(cancellationToken: cancellationToken);
 
-        return TypedResults.Ok(new EarthApiResponse<int>(profile.Rubies.Purchased + profile.Rubies.Earned));
+        return TypedResults.Ok(new EarthApiResponse<int>(rubies.Purchased + rubies.Earned));
     }
 
     [ResponseCache(Duration = 11200)]
@@ -94,13 +99,16 @@ internal sealed class ProfileController : SolaceControllerBase
             return TypedResults.BadRequest();
         }
 
-        var profile = await _earthDb.Profiles
+        var rubies = await _earthDb.Profiles
             .AsNoTracking()
-            .FirstAsync(profile => profile.Id == accountId, cancellationToken: cancellationToken);
+            .Where(profile => profile.Id == accountId)
+            .Select(profile => new { profile.Rubies.Purchased, profile.Rubies.Earned, })
+            .FirstAsync(cancellationToken: cancellationToken);
 
-        return TypedResults.Ok(new EarthApiResponse<Types.Profile.SplitRubies>(new(profile.Rubies.Purchased, profile.Rubies.Earned)));
+        return TypedResults.Ok(new EarthApiResponse<Types.Profile.SplitRubies>(new(rubies.Purchased, rubies.Earned)));
     }
 
+    // todo: does the client retreive the language somewhere? if so, we should store it in ProfileEF
     // required for the language selection option in the client to work
     [HttpPost("profile/language")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Endpoints cannot be static")]

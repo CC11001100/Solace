@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Solace.ApiServer.Utils;
-using Solace.Common;
 using Solace.StaticData;
 
 namespace Solace.ApiServer.Controllers;

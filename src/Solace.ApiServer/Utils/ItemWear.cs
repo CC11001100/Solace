@@ -16,7 +16,7 @@ internal static partial class ItemWear
             return 100.0f;
         }
 
-        return ((catalogItem.ToolInfo.MaxWear - wear) / (float)catalogItem.ToolInfo.MaxWear) * 100.0f;
+        return (catalogItem.ToolInfo.MaxWear - wear) / (float)catalogItem.ToolInfo.MaxWear * 100.0f;
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Attempt to get item health for non-tool item '{ItemId}'")]

@@ -9,25 +9,31 @@ namespace Solace.ApiServer.Utils;
 internal sealed partial class LevelUtils
 {
 #pragma warning disable IDE0060 // Remove unused parameter
-    public static async Task CheckAndHandlePlayerLevelUpAsync(EarthDbContext earthDb, ResultsEF.Builder results, Guid accountId, DateTimeOffset currentTime, StaticData.StaticDataProvider staticData)
+    public static async Task CheckAndHandlePlayerLevelUpAsync(EarthDbContext earthDb, ResultsEF.Builder results, Guid accountId, DateTimeOffset currentTime, StaticData.StaticDataProvider staticData, CancellationToken cancellationToken = default)
 #pragma warning restore IDE0060 // Remove unused parameter
     {
         var profile = await earthDb.Profiles
-            .AsTracking()
-            .FirstAsync(profile => profile.Id == accountId);
+            .AsNoTracking()
+            .Where(profile => profile.Id == accountId)
+            .Select(profile => new { profile.Level, profile.Experience, })
+            .FirstAsync(cancellationToken);
+
+        var profileLevel = profile.Level;
 
         var changed = false;
-        while (profile.Level - 1 < staticData.Levels.Levels.Length && profile.Experience >= staticData.Levels.Levels[profile.Level - 1].ExperienceRequired)
+        while (profileLevel - 1 < staticData.Levels.Levels.Length && profile.Experience >= staticData.Levels.Levels[profileLevel - 1].ExperienceRequired)
         {
             changed = true;
-            profile.Level++;
-            var rewards = MakeLevelRewards(staticData.Levels.Levels[profile.Level - 2]);
-            await TokenUtils.AddTokenAsync(earthDb, results, new LevelUpTokenEF(accountId, profile.Level, rewards.ToDBRewardsModel()));
+            profileLevel++;
+            var rewards = MakeLevelRewards(staticData.Levels.Levels[profileLevel - 2]);
+            await TokenUtils.AddTokenAsync(earthDb, results, new LevelUpTokenEF(accountId, profileLevel, rewards.ToDBRewardsModel()), cancellationToken);
         }
 
         if (changed)
         {
-            await earthDb.SaveChangesAsync();
+            await earthDb.Profiles
+                .Where(profile => profile.Id == accountId)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(profile => profile.Level, profileLevel), cancellationToken);
 
             results.Profile();
         }
