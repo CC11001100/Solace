@@ -195,11 +195,11 @@ public sealed class MigrateCommand : AsyncCommand<MigrationSettings>
 
             return 0;
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
             AnsiConsole.WriteLine();
             AnsiConsole.Write(new Rule("[bold red]Migration Failed[/]").RuleStyle("red"));
-            AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything | ExceptionFormats.ShowLinks);
+            AnsiConsole.WriteException(exception, ExceptionFormats.ShortenEverything | ExceptionFormats.ShowLinks);
             return 1;
         }
     }
@@ -719,7 +719,7 @@ public sealed class MigrateCommand : AsyncCommand<MigrationSettings>
 
                 await newDb.SaveChangesAsync(cancellationToken);
             }
-            catch (DbUpdateException ex) when (ex.IsUniqueConstraintViolation)
+            catch (DbUpdateException exception) when (exception.IsUniqueConstraintViolation)
             {
             }
         }

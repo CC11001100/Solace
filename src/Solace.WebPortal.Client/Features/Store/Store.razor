@@ -411,9 +411,9 @@
                 resetErrorMessage = "Failed to reset store data. Please try again.";
             }
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            resetErrorMessage = ex.Message;
+            resetErrorMessage = exception.Message;
         }
         finally
         {
@@ -452,9 +452,9 @@
                 updateErrorMessage = "Failed to update store data. Please try again.";
             }
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            updateErrorMessage = ex.Message;
+            updateErrorMessage = exception.Message;
         }
         finally
         {

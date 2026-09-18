@@ -60,6 +60,9 @@ public final class EventBusHelper {
 					completableFuture.complete(null);
 				}
 			}
+		}).exceptionally(throwable -> {
+			completableFuture.complete(null);
+			return null;
 		});
 
 		return completableFuture;
@@ -83,6 +86,39 @@ public final class EventBusHelper {
 			} catch (InterruptedException exception) {
 				continue;
 			}
+		}
+	}
+
+	public static void doRequestSync(@NotNull RequestSender requestSender, @NotNull String queueName,
+			@NotNull String requestType, Object requestObject)
+			throws ConnectorPlugin.ConnectorPluginException {
+		CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+
+		Gson gson = new Gson().newBuilder().serializeNulls().create();
+		requestSender.requestAsync(queueName, requestType, gson.toJson(requestObject)).thenAccept(responseMessage -> {
+			if (responseMessage != null) {
+				completableFuture.complete(true);
+			} else {
+				completableFuture.complete(false);
+			}
+		}).exceptionally(throwable -> {
+			completableFuture.complete(false);
+			return null;
+		});
+
+		boolean success;
+		for (;;) {
+			try {
+				success = completableFuture.get();
+				break;
+			} catch (ExecutionException exception) {
+				throw new AssertionError(exception);
+			} catch (InterruptedException exception) {
+				continue;
+			}
+		}
+		if (!success) {
+			throw new ConnectorPlugin.ConnectorPluginException();
 		}
 	}
 }

@@ -40,7 +40,7 @@ public final class EventBusClient implements AutoCloseable {
 		URI uri;
 		try {
 			uri = URI.create(connectionString);
-		} catch (IllegalArgumentException ex) {
+		} catch (IllegalArgumentException exception) {
 			return connectionString;
 		}
 

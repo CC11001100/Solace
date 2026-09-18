@@ -39,7 +39,7 @@ To stop the server, run `.\down.ps1` (Windows) or `./down.sh` (Linux/macOS).
    * **iOS:** Acquire a Minecraft Earth `.ipa` file.
 4. Launch the patcher and select your OS platform.
 5. Select your `.apk` or `.ipa` file.
-6. Enter the connection details displayed on the Web Portal home page (http://localhost/).
+6. Enter the connection details displayed on the Web Portal home page ([http://localhost/](http://localhost/)).
    * *iOS Note:* **Do not enable "Use Custom Auth Server"** as it is not yet fully implemented.
 7. Click **Patch**.
 8. Transfer the patched `.apk` or `.ipa` file to your mobile device and install it.

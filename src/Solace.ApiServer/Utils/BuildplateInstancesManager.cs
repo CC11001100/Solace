@@ -16,6 +16,7 @@ internal sealed partial class BuildplateInstancesManager : IAsyncDisposable
     private readonly Dictionary<Guid, TaskCompletionSource<bool>?> _pendingInstances = [];
     private readonly Dictionary<Guid, InstanceInfo> _instances = [];
     private readonly Dictionary<Guid, HashSet<Guid>> _instancesByBuildplateId = [];
+    private readonly Dictionary<Guid, Guid> _playerToInstance = [];
 
     public BuildplateInstancesManager(ILogger<BuildplateInstancesManager> logger)
     {
@@ -106,7 +107,13 @@ internal sealed partial class BuildplateInstancesManager : IAsyncDisposable
         TaskCompletionSource<bool> completableFuture = new();
         lock (_instances)
         {
-            if (_instances.TryGetValue(instanceId, out var existingInfo) && existingInfo.Ready)
+            if (playerId is not null)
+            {
+                _playerToInstance[playerId.Value] = instanceId;
+                LogMappedPlayerToInstance(playerId.Value, instanceId);
+            }
+
+            if (_instances.TryGetValue(instanceId, out var existingInfo) && existingInfo.Ready && existingInfo.Port > 0)
             {
                 completableFuture.SetResult(true);
             }
@@ -136,6 +143,29 @@ internal sealed partial class BuildplateInstancesManager : IAsyncDisposable
         }
     }
 
+    public Guid? GetInstanceIdForPlayer(Guid playerId)
+    {
+        lock (_instances)
+        {
+            if (_playerToInstance.TryGetValue(playerId, out var instanceId))
+            {
+                return instanceId;
+            }
+
+            LogPlayerNotFoundInInstanceMap(playerId, _playerToInstance.Count, string.Join(", ", _playerToInstance.Select(kv => $"{kv.Key} => {kv.Value}")));
+            return null;
+        }
+    }
+
+    public InstanceInfo? GetInstanceInfoForPlayer(Guid playerId)
+    {
+        lock (_instances)
+        {
+            var instanceId = _playerToInstance.GetValueOrDefault(playerId);
+            return instanceId != default ? _instances.GetValueOrDefault(instanceId) : null;
+        }
+    }
+
     public async Task<string?> GetBuildplatePreviewAsync(byte[] serverData, bool night, CancellationToken cancellationToken = default)
     {
         LogRequestingBuildplatePreview();
@@ -149,6 +179,19 @@ internal sealed partial class BuildplateInstancesManager : IAsyncDisposable
         }
 
         return preview;
+    }
+
+    public async Task<bool> StopInstanceAsync(Guid instanceId, CancellationToken cancellationToken = default)
+    {
+        LogStoppingBuildplateInstance(instanceId);
+
+        if (_requestSender is null)
+        {
+            return false;
+        }
+
+        var response = await _requestSender.RequestAsync("buildplates", "stop", instanceId.ToString(), cancellationToken);
+        return response is not null;
     }
 
     public async ValueTask DisposeAsync()
@@ -182,9 +225,13 @@ internal sealed partial class BuildplateInstancesManager : IAsyncDisposable
                             return Task.CompletedTask;
                         }
 
+                        bool isReady;
                         lock (_instances)
                         {
                             LogBuildplateInstanceHasStarted(startNotification.InstanceId);
+                            isReady = _instances.TryGetValue(startNotification.InstanceId, out var existingInfo) && existingInfo.Ready;
+                            var isShuttingDown = existingInfo?.ShuttingDown ?? false;
+
                             _instances[startNotification.InstanceId] = new InstanceInfo(
                                 startNotification.Type,
                                 startNotification.InstanceId,
@@ -193,11 +240,25 @@ internal sealed partial class BuildplateInstancesManager : IAsyncDisposable
                                 startNotification.BuildplateId,
                                 startNotification.Address,
                                 startNotification.Port,
-                                false,
-                                false
+                                isReady,
+                                isShuttingDown
                             );
 
                             _instancesByBuildplateId.ComputeIfAbsent(startNotification.BuildplateId, buildplateId => [])!.Add(startNotification.InstanceId);
+                            if (startNotification.PlayerId is not null)
+                            {
+                                _playerToInstance[startNotification.PlayerId.Value] = startNotification.InstanceId;
+                            }
+
+                            LogHandledStartedEvent(startNotification.InstanceId, startNotification.PlayerId, startNotification.Type, startNotification.Address, startNotification.Port, isReady);
+                        }
+
+                        lock (_pendingInstances)
+                        {
+                            if (isReady && _pendingInstances.Remove(startNotification.InstanceId, out var completableFuture) && completableFuture is not null)
+                            {
+                                completableFuture.SetResult(true);
+                            }
                         }
                     }
                     catch (Exception exception)
@@ -218,9 +279,9 @@ internal sealed partial class BuildplateInstancesManager : IAsyncDisposable
                     lock (_instances)
                     {
                         var instanceInfo = _instances.GetValueOrDefault(instanceId);
+                        LogBuildplateInstanceIsReady(instanceId);
                         if (instanceInfo is not null)
                         {
-                            LogBuildplateInstanceIsReady(instanceId);
                             _instances[instanceId] = new InstanceInfo(
                                 instanceInfo.Type,
                                 instanceInfo.InstanceId,
@@ -233,11 +294,25 @@ internal sealed partial class BuildplateInstancesManager : IAsyncDisposable
                                 instanceInfo.ShuttingDown
                             );
                         }
+                        else
+                        {
+                            _instances[instanceId] = new InstanceInfo(
+                                default,
+                                instanceId,
+                                null,
+                                null,
+                                default,
+                                "",
+                                0,
+                                true,
+                                false
+                            );
+                        }
                     }
 
                     lock (_pendingInstances)
                     {
-                        if (_pendingInstances.Remove(instanceId, out var completableFuture))
+                        if (_instances.TryGetValue(instanceId, out var info) && info.Port > 0 && _pendingInstances.Remove(instanceId, out var completableFuture))
                         {
                             completableFuture?.SetResult(true);
                         }
@@ -291,6 +366,10 @@ internal sealed partial class BuildplateInstancesManager : IAsyncDisposable
 
                             var instanceIds = _instancesByBuildplateId.GetValueOrDefault(instanceInfo.BuildplateId);
                             instanceIds?.Remove(instanceInfo.InstanceId);
+                            if (instanceInfo.PlayerId is not null)
+                            {
+                                _playerToInstance.Remove(instanceInfo.PlayerId.Value);
+                            }
                         }
                     }
                 }
@@ -402,4 +481,16 @@ internal sealed partial class BuildplateInstancesManager : IAsyncDisposable
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Buildplate instance {InstanceId} has stopped")]
     private partial void LogBuildplateInstancHasStopped(Guid InstanceId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Stopping buildplate instance {InstanceId}")]
+    private partial void LogStoppingBuildplateInstance(Guid InstanceId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Mapped player {PlayerId} to instance {InstanceId} on start request")]
+    private partial void LogMappedPlayerToInstance(Guid PlayerId, Guid InstanceId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "GetInstanceIdForPlayer: player {PlayerId} not found in _playerToInstance. Current mappings ({Count}): {Mappings}")]
+    private partial void LogPlayerNotFoundInInstanceMap(Guid PlayerId, int Count, string Mappings);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Handled 'started' event for instance {InstanceId}: playerId={PlayerId}, type={Type}, address={Address}:{Port}, isReady={IsReady}")]
+    private partial void LogHandledStartedEvent(Guid InstanceId, Guid? PlayerId, InstanceType Type, string Address, int Port, bool IsReady);
 }
