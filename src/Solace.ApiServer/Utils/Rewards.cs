@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Solace.BuildplateImporter;
@@ -76,15 +76,31 @@ internal sealed class Rewards
         var checkLevelUp = false;
         if (_rubies > 0 || _experiencePoints > 0)
         {
-            await earthDb.Profiles
-                .Where(profile => profile.Id == profileId)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(profile => profile.Rubies.Earned, profile => profile.Rubies.Earned + _rubies)
-                    .SetProperty(profile => profile.Experience, profile => profile.Experience + _experiencePoints), cancellationToken);
+            await using var transaction = earthDb.Database.CurrentTransaction is null
+                ? await earthDb.Database.BeginTransactionAsync(cancellationToken)
+                : null;
+
+            var profile = await earthDb.Profiles
+                .AsTracking()
+                .Include(profile => profile.Rubies)
+                .FirstAsync(profile => profile.Id == profileId, cancellationToken: cancellationToken);
+
+            if (_rubies > 0)
+            {
+                profile.Rubies.Earned += _rubies;
+            }
 
             if (_experiencePoints > 0)
             {
+                profile.Experience += _experiencePoints;
                 checkLevelUp = true;
+            }
+
+            await earthDb.SaveChangesAsync(cancellationToken);
+
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
             }
 
             results.Profile();
