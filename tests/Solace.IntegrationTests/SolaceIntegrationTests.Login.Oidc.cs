@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Solace.IntegrationTests;
 
-public sealed partial class LoginTests
+public sealed partial class SolaceIntegrationTests
 {
     [Test]
     public async Task Login_Oidc(CancellationToken cancellationToken)
@@ -51,8 +51,8 @@ public sealed partial class LoginTests
         var loginPostContent = new FormUrlEncodedContent(
         [
             new KeyValuePair<string, string>("_handler", "login"),
-            new KeyValuePair<string, string>("Input.Email", LoginTestsFixture.AccountEmail),
-            new KeyValuePair<string, string>("Input.Password", LoginTestsFixture.AccountPassword),
+            new KeyValuePair<string, string>("Input.Email", IntegrationTestsFixture.AccountEmail),
+            new KeyValuePair<string, string>("Input.Password", IntegrationTestsFixture.AccountPassword),
             new KeyValuePair<string, string>("Input.RememberMe", "false"),
             new KeyValuePair<string, string>("__RequestVerificationToken", loginToken),
         ]);

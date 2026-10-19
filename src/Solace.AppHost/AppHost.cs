@@ -233,9 +233,16 @@ var apiServer = builder.AddProject<Projects.Solace_ApiServer>("api-server")
     .WithReference(eventBus)
     .WaitFor(eventBus)
     .WithReference(objectStore)
-    .WaitFor(objectStore)
-    .WithReference(buildplateLauncher)
-    .WaitFor(buildplateLauncher)
+    .WaitFor(objectStore);
+
+if (!testMode)
+{
+    apiServer
+        .WithReference(buildplateLauncher)
+        .WaitFor(buildplateLauncher);
+}
+
+apiServer
     .WithEnvironmentSection(builder.Configuration, "ApiServer:Authentication", prefixToRemove: "ApiServer:")
     .WithEnvironmentParameter(fixUpBuildplatesOnImport, prefixToRemove: "Shared:")
     .WithEnvironment("StaticDataPath", staticDataPath)

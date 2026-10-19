@@ -11,7 +11,7 @@ using Solace.Db.Earth;
 namespace Solace.IntegrationTests;
 
 // todo: validate DisplayClaims
-public sealed partial class LoginTests
+public sealed partial class SolaceIntegrationTests
 {
     [Test]
     public async Task Login_XboxLive_TitleMtg_Default(CancellationToken cancellationToken)
@@ -56,7 +56,7 @@ public sealed partial class LoginTests
 
         var cryptoSecrets = await earthDb.GetOrInitializeSecretsAsync();
 
-        var ticket = JwtUtils.Sign(new AuthServer.Features.Common.XboxTicketToken(_fixture.ProfileId, LoginTestsFixture.ProfileUsername), cryptoSecrets.LoginXboxTokenSecret, ValidityDatePair.Create(5));
+        var ticket = JwtUtils.Sign(new AuthServer.Features.Common.XboxTicketToken(_fixture.ProfileId, IntegrationTestsFixture.ProfileUsername), cryptoSecrets.LoginXboxTokenSecret, ValidityDatePair.Create(5));
 
         // currently, only RpsTicket is used by the server
         using var response = await _fixture.AuthServerClient.PostAsync("/user.auth.xboxlive.com/user/authenticate", new StringContent($$"""
@@ -105,7 +105,7 @@ public sealed partial class LoginTests
 
         var cryptoSecrets = await earthDb.GetOrInitializeSecretsAsync();
 
-        var ticket = JwtUtils.Sign(new AuthServer.Features.Common.XboxTicketToken(_fixture.ProfileId, LoginTestsFixture.ProfileUsername), cryptoSecrets.LoginXboxTokenSecret, ValidityDatePair.Create(5));
+        var ticket = JwtUtils.Sign(new AuthServer.Features.Common.XboxTicketToken(_fixture.ProfileId, IntegrationTestsFixture.ProfileUsername), cryptoSecrets.LoginXboxTokenSecret, ValidityDatePair.Create(5));
 
         // currently, only RpsTicket is used by the server
         using var response = await _fixture.AuthServerClient.PostAsync("/device.auth.xboxlive.com/device/authenticate", new StringContent($$"""
@@ -159,7 +159,7 @@ public sealed partial class LoginTests
             Did = "F700F376F3793B3A", // TODO: implement
         }, cryptoSecrets.LiveAuthTokenSecret, ValidityDatePair.Create(5));
 
-        var ticket = JwtUtils.Sign(new AuthServer.Features.Common.XboxTicketToken(_fixture.ProfileId, LoginTestsFixture.ProfileUsername), cryptoSecrets.LoginXboxTokenSecret, ValidityDatePair.Create(5));
+        var ticket = JwtUtils.Sign(new AuthServer.Features.Common.XboxTicketToken(_fixture.ProfileId, IntegrationTestsFixture.ProfileUsername), cryptoSecrets.LoginXboxTokenSecret, ValidityDatePair.Create(5));
 
         // currently, only RpsTicket and DeviceToken is used by the server
         using var response = await _fixture.AuthServerClient.PostAsync("/title.auth.xboxlive.com/title/authenticate", new StringContent($$"""
@@ -220,7 +220,7 @@ public sealed partial class LoginTests
             Uhs = _fixture.ProfileId,
 
             UserId = _fixture.ProfileId,
-            Username = LoginTestsFixture.ProfileUsername,
+            Username = IntegrationTestsFixture.ProfileUsername,
         }, cryptoSecrets.LiveAuthTokenSecret, ValidityDatePair.Create(5));
 
         var deviceToken = JwtUtils.Sign<AuthToken>(new DeviceToken()
@@ -376,7 +376,7 @@ public sealed partial class LoginTests
 
         await Assert.That(gamerTag).IsNotNull();
 
-        await Assert.That(gamerTag["value"]!.GetValue<string>()).IsEqualTo(LoginTestsFixture.ProfileUsername);
+        await Assert.That(gamerTag["value"]!.GetValue<string>()).IsEqualTo(IntegrationTestsFixture.ProfileUsername);
     }
 
     [Test]
@@ -397,7 +397,7 @@ public sealed partial class LoginTests
             Uhs = _fixture.ProfileId,
 
             UserId = _fixture.ProfileId,
-            Username = LoginTestsFixture.ProfileUsername,
+            Username = IntegrationTestsFixture.ProfileUsername,
         }, cryptoSecrets.LiveAuthTokenSecret, ValidityDatePair.Create(5));
 
         var deviceToken = JwtUtils.Sign<AuthToken>(new DeviceToken()
@@ -442,7 +442,7 @@ public sealed partial class LoginTests
 
     private void AddXBLAuth(HttpRequestMessage request, CryptoSecrets cryptoSecrets)
     {
-        var jwt = JwtUtils.Sign(new XapiToken(_fixture.ProfileId, LoginTestsFixture.ProfileUsername), cryptoSecrets.LiveXapiTokenSecret, ValidityDatePair.Create(5));
+        var jwt = JwtUtils.Sign(new XapiToken(_fixture.ProfileId, IntegrationTestsFixture.ProfileUsername), cryptoSecrets.LiveXapiTokenSecret, ValidityDatePair.Create(5));
 
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("XBL3.0", $"x={_fixture.ProfileId};{jwt}");
     }

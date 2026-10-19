@@ -9,10 +9,9 @@ using Solace.Db.Earth;
 
 namespace Solace.IntegrationTests;
 
-public sealed partial class LoginTests
+public sealed partial class SolaceIntegrationTests
 {
-    [Test]
-    public async Task Login_Playfab_LoginWithXbox(CancellationToken cancellationToken)
+    private async Task<(string SessionTicket, JsonObject Data, CryptoSecrets CryptoSecrets)> GetPlayfabSessionTicketAsync(CancellationToken cancellationToken)
     {
         await using var earthDb = EarthDbContext.CreateFromConnection(_fixture.EarthConnectionString);
 
@@ -20,7 +19,7 @@ public sealed partial class LoginTests
 
         var xboxToken = JwtUtils.Sign(new PlayfabXboxToken(_fixture.ProfileId), cryptoSecrets.LivePlayfabTokenSecret, ValidityDatePair.Create(5));
 
-        using var respones = await _fixture.AuthServerClient.PostAsync("/20CA2.playfabapi.com/Client/LoginWithXbox?sdk=XPlatCppSdk-3.11.190520", new StringContent($$"""
+        using var response = await _fixture.AuthServerClient.PostAsync("/20CA2.playfabapi.com/Client/LoginWithXbox?sdk=XPlatCppSdk-3.11.190520", new StringContent($$"""
             {
                 "CreateAccount": true,
                 "EncryptedRequest": null,
@@ -47,11 +46,18 @@ public sealed partial class LoginTests
             }
             """, Encoding.UTF8, "application/json"), cancellationToken);
 
-        var data = await ValidatePlayfabResponse(respones, cancellationToken);
+        var data = await ValidatePlayfabResponse(response, cancellationToken);
 
         var sessionTicket = data["SessionTicket"]?.GetValue<string>();
-
         await Assert.That(sessionTicket).IsNotNull();
+
+        return (sessionTicket!, data, cryptoSecrets);
+    }
+
+    [Test]
+    public async Task Login_Playfab_LoginWithXbox(CancellationToken cancellationToken)
+    {
+        var (sessionTicket, data, cryptoSecrets) = await GetPlayfabSessionTicketAsync(cancellationToken);
 
         var dashIndex = -1;
 

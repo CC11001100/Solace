@@ -2,7 +2,7 @@ using System.Net;
 
 namespace Solace.IntegrationTests;
 
-public sealed partial class LoginTests
+public sealed partial class SolaceIntegrationTests
 {
     [Test]
     public async Task Login_InlineConnect(CancellationToken cancellationToken)

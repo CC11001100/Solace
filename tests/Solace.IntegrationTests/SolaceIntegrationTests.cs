@@ -2,12 +2,12 @@ using System.Text.RegularExpressions;
 
 namespace Solace.IntegrationTests;
 
-[ClassDataSource<LoginTestsFixture>(Shared = SharedType.PerClass)]
-public sealed partial class LoginTests
+[ClassDataSource<IntegrationTestsFixture>(Shared = SharedType.PerAssembly)]
+public sealed partial class SolaceIntegrationTests
 {
-    private readonly LoginTestsFixture _fixture;
+    private readonly IntegrationTestsFixture _fixture;
 
-    public LoginTests(LoginTestsFixture fixture)
+    public SolaceIntegrationTests(IntegrationTestsFixture fixture)
     {
         _fixture = fixture;
     }

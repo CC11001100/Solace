@@ -11,7 +11,7 @@ using Solace.Db.Earth;
 
 namespace Solace.IntegrationTests;
 
-public sealed partial class LoginTests
+public sealed partial class SolaceIntegrationTests
 {
     [Test]
     public async Task Login_Rst2(CancellationToken cancellationToken)
@@ -23,7 +23,7 @@ public sealed partial class LoginTests
         var liveValidity = ValidityDatePair.Create(TimeSpan.FromMinutes(10));
         var liveToken = new AuthServer.Features.Live.Login.UserToken(
             _fixture.ProfileId,
-            LoginTestsFixture.ProfileUsername
+            IntegrationTestsFixture.ProfileUsername
         );
         var liveTokenString = JwtUtils.Sign(liveToken, cryptoSecrets.LoginUserTokenSecret, liveValidity);
 

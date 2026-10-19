@@ -10,7 +10,7 @@ using TUnit.Core.Interfaces;
 
 namespace Solace.IntegrationTests;
 
-public sealed class LoginTestsFixture : IAsyncInitializer, IAsyncDisposable
+public sealed class IntegrationTestsFixture : IAsyncInitializer, IAsyncDisposable
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(15);
 
@@ -25,11 +25,12 @@ public sealed class LoginTestsFixture : IAsyncInitializer, IAsyncDisposable
     public DistributedApplication App { get; private set; } = null!;
     public HttpClient AuthServerClient { get; private set; } = null!;
     public HttpClient WebPortalClient { get; private set; } = null!;
+    public HttpClient ApiClient { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
         App = await AppHostExtensions.RunAsync(
-            ["postgres", "event-bus", "auth-server", "object-store", "web-portal"],
+            ["postgres", "event-bus", "auth-server", "object-store", "web-portal", "api-server"],
             [
                 // use default (localhost + port)
                 "Shared:PublicEndpoints:WebPortal=",
@@ -41,11 +42,15 @@ public sealed class LoginTestsFixture : IAsyncInitializer, IAsyncDisposable
 
         AuthServerClient = App.CreateHttpClient("auth-server", "http");
         WebPortalClient = App.CreateHttpClient("web-portal", "http");
+        ApiClient = App.CreateHttpClient("api-server", "http");
 
         await App.ResourceNotifications.WaitForResourceHealthyAsync("auth-server")
             .WaitAsync(DefaultTimeout);
 
         await App.ResourceNotifications.WaitForResourceHealthyAsync("web-portal")
+            .WaitAsync(DefaultTimeout);
+
+        await App.ResourceNotifications.WaitForResourceHealthyAsync("api-server")
             .WaitAsync(DefaultTimeout);
 
         var webPortalConnectionString = await App.GetConnectionStringAsync("WebPortalDb");
@@ -95,6 +100,7 @@ public sealed class LoginTestsFixture : IAsyncInitializer, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        ApiClient.Dispose();
         WebPortalClient.Dispose();
         AuthServerClient.Dispose();
 
