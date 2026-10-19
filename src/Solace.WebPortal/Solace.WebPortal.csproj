@@ -6,6 +6,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <UserSecretsId>aspnet-Solace_WebPortal-1407b485-7261-4b0c-b807-1bef85e263e4</UserSecretsId>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <SixLaborsLicenseFile>$(MSBuildThisFileDirectory)../../licenses/sixlabors.lic</SixLaborsLicenseFile>
   </PropertyGroup>
 
   <ItemGroup>
