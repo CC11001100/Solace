@@ -31,7 +31,7 @@ public sealed class IntegrationTestsFixture : IAsyncInitializer, IAsyncDisposabl
     public async Task InitializeAsync()
     {
         App = await AppHostExtensions.RunAsync(
-            ["postgres", "event-bus", "auth-server", "object-store", "web-portal", "api-server"],
+            ["postgres", "event-bus", "auth-server", "object-store", "web-portal", "api-server", "tappable-generator"],
             [
                 // use default (localhost + port)
                 "Shared:PublicEndpoints:WebPortal=",
@@ -52,6 +52,9 @@ public sealed class IntegrationTestsFixture : IAsyncInitializer, IAsyncDisposabl
             .WaitAsync(DefaultTimeout);
 
         await App.ResourceNotifications.WaitForResourceHealthyAsync("api-server")
+            .WaitAsync(DefaultTimeout);
+
+        await App.ResourceNotifications.WaitForResourceHealthyAsync("tappable-generator")
             .WaitAsync(DefaultTimeout);
 
         var webPortalConnectionString = await App.GetConnectionStringAsync("WebPortalDb");

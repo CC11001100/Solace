@@ -1,4 +1,5 @@
-﻿using Asp.Versioning;
+using System.Text.Json;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -216,7 +217,7 @@ internal sealed class TappablesController : SolaceControllerBase
 
         foreach (var entry in requestedIds)
         {
-            if (entry.Value is not string)
+            if (entry.Value is not string and not JsonElement { ValueKind: JsonValueKind.String })
             {
                 return TypedResults.BadRequest();
             }
