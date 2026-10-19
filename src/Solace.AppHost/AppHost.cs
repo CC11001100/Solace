@@ -40,6 +40,7 @@ builder.AddDockerComposeEnvironment("solace-prod")
     });
 
 var postgres = builder.AddPostgres("postgres")
+    .WithArgs("-c", "max_connections=500")
     .WithPgAdmin();
 
 if (builder.Configuration.GetValue("UseVolumes", true))

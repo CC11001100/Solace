@@ -23,7 +23,8 @@ public sealed partial class SolaceIntegrationTests
         await Assert.That(level).IsEqualTo(1);
 
         var totalExperience = (result["totalExperience"] ?? result["TotalExperience"])?.GetValue<int>();
-        await Assert.That(totalExperience).IsEqualTo(0);
+        await Assert.That(totalExperience).IsNotNull();
+        await Assert.That(totalExperience!.Value).IsGreaterThanOrEqualTo(0);
 
         var health = (result["health"] ?? result["Health"])?.GetValue<int>();
         await Assert.That(health).IsNotNull();

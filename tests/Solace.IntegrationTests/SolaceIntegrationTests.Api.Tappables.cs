@@ -48,12 +48,34 @@ public sealed partial class SolaceIntegrationTests
         await Assert.That(activeLocations).IsNotNull();
 
         JsonObject? tappableToRedeem = null;
-        foreach (var locNode in activeLocations!)
+        var now = DateTimeOffset.UtcNow;
+        foreach (var locationNode in activeLocations!)
         {
-            if (locNode is JsonObject locObj)
+            if (locationNode is JsonObject locObj)
             {
                 var locType = (locObj["type"] ?? locObj["Type"])?.GetValue<string>();
                 if (string.Equals(locType, "TAPPABLE", StringComparison.OrdinalIgnoreCase))
+                {
+                    var spawnTimeStr = (locObj["spawnTime"] ?? locObj["SpawnTime"])?.GetValue<string>();
+                    var expStr = (locObj["expirationTime"] ?? locObj["ExpirationTime"])?.GetValue<string>();
+
+                    if (spawnTimeStr is not null && expStr is not null
+                        && DateTimeOffset.TryParse(spawnTimeStr, System.Globalization.CultureInfo.InvariantCulture, out var st)
+                        && DateTimeOffset.TryParse(expStr, System.Globalization.CultureInfo.InvariantCulture, out var exp)
+                        && st <= now && exp > now)
+                    {
+                        tappableToRedeem = locObj;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (tappableToRedeem is null)
+        {
+            foreach (var locationNode in activeLocations!)
+            {
+                if (locationNode is JsonObject locObj && string.Equals((locObj["type"] ?? locObj["Type"])?.GetValue<string>(), "TAPPABLE", StringComparison.OrdinalIgnoreCase))
                 {
                     tappableToRedeem = locObj;
                     break;

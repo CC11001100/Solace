@@ -1,4 +1,4 @@
-﻿using Asp.Versioning;
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -87,7 +87,12 @@ internal sealed class InventoryController : SolaceControllerBase
             {
                 var uuid = item.ItemId;
                 var count = item.Count - hotbarItemCounts.GetValueOrDefault(uuid);
-                var itemJournalEntry = journalEntries[uuid];
+                if (!journalEntries.TryGetValue(uuid, out var itemJournalEntry))
+                {
+                    var now = DateTimeOffset.UtcNow;
+                    itemJournalEntry = new JournalEntryDto(uuid, now, now);
+                }
+
                 var firstSeen = TimeFormatter.FormatTime(itemJournalEntry.FirstSeen);
                 var lastSeen = TimeFormatter.FormatTime(itemJournalEntry.LastSeen);
 

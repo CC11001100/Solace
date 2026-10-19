@@ -21,6 +21,7 @@ public sealed class IntegrationTestsFixture : IAsyncInitializer, IAsyncDisposabl
     public Guid ProfileId { get; private set; }
 
     public string EarthConnectionString { get; private set; } = null!;
+    public string PlayfabConnectionString { get; private set; } = null!;
 
     public DistributedApplication App { get; private set; } = null!;
     public HttpClient AuthServerClient { get; private set; } = null!;
@@ -92,6 +93,10 @@ public sealed class IntegrationTestsFixture : IAsyncInitializer, IAsyncDisposabl
         var earthConnectionString = await App.GetConnectionStringAsync("EarthDb");
         Debug.Assert(earthConnectionString is not null);
         EarthConnectionString = earthConnectionString;
+
+        var playfabConnectionString = await App.GetConnectionStringAsync("PlayfabDb");
+        Debug.Assert(playfabConnectionString is not null);
+        PlayfabConnectionString = playfabConnectionString;
 
         await using var earthDb = EarthDbContext.CreateFromConnection(earthConnectionString);
 
