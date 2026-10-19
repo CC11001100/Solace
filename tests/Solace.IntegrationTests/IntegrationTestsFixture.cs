@@ -26,6 +26,7 @@ public sealed class IntegrationTestsFixture : IAsyncInitializer, IAsyncDisposabl
     public HttpClient AuthServerClient { get; private set; } = null!;
     public HttpClient WebPortalClient { get; private set; } = null!;
     public HttpClient ApiClient { get; private set; } = null!;
+    public string? GenoaToken { get; set; }
 
     public async Task InitializeAsync()
     {

@@ -1,4 +1,8 @@
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Aspire.Hosting.Testing;
 
 namespace Solace.IntegrationTests;
 
@@ -10,6 +14,51 @@ public sealed partial class SolaceIntegrationTests
     public SolaceIntegrationTests(IntegrationTestsFixture fixture)
     {
         _fixture = fixture;
+    }
+
+    private async Task<string> GetGenoaAuthTokenAsync(CancellationToken cancellationToken = default)
+    {
+        if (_fixture.GenoaToken is not null)
+        {
+            return _fixture.GenoaToken;
+        }
+
+        var (sessionTicket, _, _) = await GetPlayfabSessionTicketAsync(cancellationToken);
+
+        using var response = await _fixture.ApiClient.PostAsync("/1/api/v1.1/player/profile/signin", new StringContent($$"""
+            {
+                "Latitude": 50.0,
+                "Longitude": 14.0,
+                "DeviceId": "test-device-id",
+                "DeviceOS": "Android",
+                "DeviceToken": "test-device-token",
+                "Language": "en-US",
+                "SessionTicket": "{{sessionTicket}}",
+                "Streams": {}
+            }
+            """, Encoding.UTF8, "application/json"), cancellationToken);
+
+        await Assert.That(response).IsOk();
+
+        var json = await response.Content.ReadFromJsonAsync<JsonObject>(cancellationToken);
+        await Assert.That(json).IsNotNull();
+
+        var result = (json!["result"] ?? json["Result"]) as JsonObject;
+        await Assert.That(result).IsNotNull();
+
+        var authToken = (result!["authenticationToken"] ?? result["AuthenticationToken"])?.GetValue<string>();
+        await Assert.That(authToken).IsNotNull();
+
+        _fixture.GenoaToken = authToken;
+        return authToken!;
+    }
+
+    private async Task<HttpClient> CreateAuthenticatedApiClientAsync(CancellationToken cancellationToken = default)
+    {
+        var token = await GetGenoaAuthTokenAsync(cancellationToken);
+        var client = _fixture.App.CreateHttpClient("api-server", "http");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Genoa", token);
+        return client;
     }
 
     private static string ExtractInputValue(string html, string inputName)
