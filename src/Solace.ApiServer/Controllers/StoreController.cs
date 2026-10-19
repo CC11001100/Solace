@@ -64,7 +64,9 @@ internal sealed partial class StoreController : SolaceControllerBase
 
                         var buildplate = await _earthDb.TemplateBuildplates
                             .AsNoTracking()
-                            .FirstOrDefaultAsync(template => template.Id == itemId, cancellationToken);
+                            .Where(template => template.Id == itemId)
+                            .Select(template => new { template.PreviewObjectId, template.Size, template.Offset, })
+                            .FirstOrDefaultAsync(cancellationToken);
 
                         var storeItemType = Enum.Parse<StoreItemType>(item.StoreItemType);
 
@@ -169,7 +171,9 @@ internal sealed partial class StoreController : SolaceControllerBase
         var itemToPurchase = await _playfabDb.Items
             .AsNoTracking()
             .Include(item => item.Data)
-            .FirstOrDefaultAsync(item => item.Id == itemId, cancellationToken);
+            .Where(item => item.Id == itemId)
+            .Select(item => new { item.Purchasable, item.StartDate, item.Data, })
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (itemToPurchase is null)
         {

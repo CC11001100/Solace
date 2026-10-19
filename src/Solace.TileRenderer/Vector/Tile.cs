@@ -4,15 +4,13 @@ namespace Solace.TileRenderer.Vector;
 
 public sealed class Tile
 {
-    private readonly ulong _id;
-
     /// <summary>
     /// Creates a new tile from a given id.
     /// </summary>
     /// <param name="id"></param>
     public Tile(ulong id)
     {
-        _id = id;
+        Id = id;
 
         var (x, y, zoom) = CalculateTile(id);
         X = x;
@@ -30,7 +28,7 @@ public sealed class Tile
         Y = y;
         Zoom = zoom;
 
-        _id = CalculateTileId(zoom, x, y);
+        Id = CalculateTileId(zoom, x, y);
         CalculateBounds();
     }
 
@@ -56,11 +54,11 @@ public sealed class Tile
     internal static BoundingBox GetBoundingBox(int x, int y, int zoom)
     {
         var zoomPow = (double)(1 << zoom); // double.Pow(2.0, this.Zoom)
-        var n = double.Pi - ((2.0 * double.Pi * y) / zoomPow);
+        var n = double.Pi - (2.0 * double.Pi * y / zoomPow);
         var left = (x / zoomPow * 360.0) - 180.0;
         var top = 180.0 / double.Pi * double.Atan(double.Sinh(n));
 
-        n = double.Pi - ((2.0 * double.Pi * (y + 1)) / zoomPow);
+        n = double.Pi - (2.0 * double.Pi * (y + 1) / zoomPow);
         var right = ((x + 1) / zoomPow * 360.0) - 180.0;
         var bottom = 180.0 / double.Pi * double.Atan(double.Sinh(n));
         return new BoundingBox(left, bottom, right, top);
@@ -255,7 +253,7 @@ public sealed class Tile
     /// <summary>
     /// Returns the id of this tile.
     /// </summary>
-    public ulong Id => _id;
+    public ulong Id { get; }
 
     /// <summary>
     /// Returns true if this tile is valid.
@@ -310,7 +308,7 @@ public sealed class Tile
             lon -= 0.000001;
         }
 
-        if (lat > 85.0511 || lat < -85.0511)
+        if (lat is > 85.0511 or < -85.0511)
         {
             x = 0;
             y = 0;

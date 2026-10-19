@@ -9,6 +9,7 @@ import earthrestored.solace.buildplate.connector.model.InventoryRemoveItemReques
 import earthrestored.solace.buildplate.connector.model.InventoryResponse;
 import earthrestored.solace.buildplate.connector.model.InventorySetHotbarMessage;
 import earthrestored.solace.buildplate.connector.model.InventoryUpdateItemWearMessage;
+import earthrestored.solace.buildplate.connector.model.RequestWithInstanceId;
 import earthrestored.solace.eventbus.client.Publisher;
 import earthrestored.solace.eventbus.client.RequestSender;
 
@@ -18,15 +19,18 @@ final class SyncedPlayerInventory implements PlayerInventory {
 	@NotNull
 	private final String playerId;
 	@NotNull
+	private final String instanceId;
+	@NotNull
 	private final RequestSender eventBusRequestSender;
 	@NotNull
 	private final Publisher eventBusPublisher;
 	@NotNull
 	private final String eventBusQueueName;
 
-	public SyncedPlayerInventory(@NotNull String playerId, @NotNull RequestSender eventBusRequestSender,
+	public SyncedPlayerInventory(@NotNull String playerId, @NotNull String instanceId, @NotNull RequestSender eventBusRequestSender,
 			@NotNull Publisher eventBusPublisher, @NotNull String eventBusQueueName) {
 		this.playerId = playerId;
+		this.instanceId = instanceId;
 		this.eventBusRequestSender = eventBusRequestSender;
 		this.eventBusPublisher = eventBusPublisher;
 		this.eventBusQueueName = eventBusQueueName;
@@ -36,7 +40,7 @@ final class SyncedPlayerInventory implements PlayerInventory {
 	@NotNull
 	public Inventory getContents() throws ConnectorPlugin.ConnectorPluginException {
 		InventoryResponse inventoryResponse = EventBusHelper.doRequestResponseSync(this.eventBusRequestSender,
-				this.eventBusQueueName, "getInventory", this.playerId, InventoryResponse.class);
+				this.eventBusQueueName, "getInventory", new RequestWithInstanceId<>(this.instanceId, this.playerId), InventoryResponse.class);
 		Inventory inventory;
 		try {
 			inventory = new Inventory(
@@ -59,45 +63,45 @@ final class SyncedPlayerInventory implements PlayerInventory {
 
 	@Override
 	public void addItem(@NotNull String itemId, int count) throws ConnectorPlugin.ConnectorPluginException {
-		EventBusHelper.publishJson(this.eventBusPublisher, this.eventBusQueueName, "inventoryAdd",
-				new InventoryAddItemMessage(this.playerId, itemId, count, null, 0));
+		EventBusHelper.doRequestSync(this.eventBusRequestSender, this.eventBusQueueName, "inventoryAdd",
+				new RequestWithInstanceId<>(this.instanceId, new InventoryAddItemMessage(this.playerId, itemId, count, null, 0)));
 	}
 
 	@Override
 	public void addItem(@NotNull String itemId, @NotNull String instanceId, int wear)
 			throws ConnectorPlugin.ConnectorPluginException {
-		EventBusHelper.publishJson(this.eventBusPublisher, this.eventBusQueueName, "inventoryAdd",
-				new InventoryAddItemMessage(this.playerId, itemId, 1, instanceId, wear));
+		EventBusHelper.doRequestSync(this.eventBusRequestSender, this.eventBusQueueName, "inventoryAdd",
+				new RequestWithInstanceId<>(this.instanceId, new InventoryAddItemMessage(this.playerId, itemId, 1, instanceId, wear)));
 	}
 
 	@Override
 	public int removeItem(@NotNull String itemId, int count) throws ConnectorPlugin.ConnectorPluginException {
 		return EventBusHelper.doRequestResponseSync(this.eventBusRequestSender, this.eventBusQueueName,
-				"inventoryRemove", new InventoryRemoveItemRequest(this.playerId, itemId, count, null), Integer.class);
+				"inventoryRemove", new RequestWithInstanceId<>(this.instanceId, new InventoryRemoveItemRequest(this.playerId, itemId, count, null)), Integer.class);
 	}
 
 	@Override
 	public boolean removeItem(@NotNull String itemId, @NotNull String instanceId)
 			throws ConnectorPlugin.ConnectorPluginException {
 		return EventBusHelper.doRequestResponseSync(this.eventBusRequestSender, this.eventBusQueueName,
-				"inventoryRemove", new InventoryRemoveItemRequest(this.playerId, itemId, 1, instanceId), Boolean.class);
+				"inventoryRemove", new RequestWithInstanceId<>(this.instanceId, new InventoryRemoveItemRequest(this.playerId, itemId, 1, instanceId)), Boolean.class);
 	}
 
 	@Override
 	public void updateItemWear(@NotNull String itemId, @NotNull String instanceId, int wear)
 			throws ConnectorPlugin.ConnectorPluginException {
-		EventBusHelper.publishJson(this.eventBusPublisher, this.eventBusQueueName, "inventoryUpdateWear",
-				new InventoryUpdateItemWearMessage(this.playerId, itemId, instanceId, wear));
+		EventBusHelper.doRequestSync(this.eventBusRequestSender, this.eventBusQueueName, "inventoryUpdateWear",
+				new RequestWithInstanceId<>(this.instanceId, new InventoryUpdateItemWearMessage(this.playerId, itemId, instanceId, wear)));
 	}
 
 	@Override
 	public void setHotbar(Inventory.HotbarItem[] hotbar) throws ConnectorPlugin.ConnectorPluginException {
-		EventBusHelper.publishJson(this.eventBusPublisher, this.eventBusQueueName, "inventorySetHotbar",
-				new InventorySetHotbarMessage(this.playerId,
+		EventBusHelper.doRequestSync(this.eventBusRequestSender, this.eventBusQueueName, "inventorySetHotbar",
+				new RequestWithInstanceId<>(this.instanceId, new InventorySetHotbarMessage(this.playerId,
 						Arrays.stream(hotbar)
 								.map(item -> item != null
 										? new InventorySetHotbarMessage.Item(item.uuid, item.count, item.instanceId)
 										: null)
-								.toArray(InventorySetHotbarMessage.Item[]::new)));
+								.toArray(InventorySetHotbarMessage.Item[]::new))));
 	}
 }

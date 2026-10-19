@@ -110,7 +110,7 @@ internal static class SmeltingCalculator
         int remainingHeat;
         if (!completed)
         {
-            remainingHeat = (int)(((burnEndTime - fuelEndTime) * currentFuelTotalHeat) / currentFuel.BurnDuration);
+            remainingHeat = (int)((burnEndTime - fuelEndTime) * currentFuelTotalHeat / currentFuel.BurnDuration);
         }
         else
         {
@@ -282,7 +282,7 @@ internal static class SmeltingCalculator
     // TODO: make this configurable
     public static int CalculateUnlockPrice(int slotIndex)
     {
-        if (slotIndex < 1 || slotIndex > 3)
+        if (slotIndex is < 1 or > 3)
         {
             throw new ArgumentOutOfRangeException(nameof(slotIndex));
         }

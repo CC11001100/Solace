@@ -84,10 +84,10 @@ internal sealed partial class EncounterGenerator
     }
 
     private static float XToLon(float x)
-        => ((x * 2.0f - 1.0f) * float.Pi) * (180f / float.Pi);
+        => (x * 2.0f - 1.0f) * float.Pi * (180f / float.Pi);
 
     private static float YToLat(float y)
-        => (float.Atan(float.Sinh((1.0f - y * 2.0f) * float.Pi))) * (180f / float.Pi);
+        => float.Atan(float.Sinh((1.0f - y * 2.0f) * float.Pi)) * (180f / float.Pi);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "No encounter configs provided")]
     private static partial void LogNoEncounterConfigsProvided(ILogger logger);

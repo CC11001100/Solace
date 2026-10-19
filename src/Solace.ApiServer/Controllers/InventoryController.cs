@@ -179,9 +179,11 @@ internal sealed class InventoryController : SolaceControllerBase
             return TypedResults.BadRequest();
         }
 
-        var profile = await _earthDb.Profiles
-            .AsTracking()
-            .FirstAsync(profile => profile.Id == accountId, cancellationToken: cancellationToken);
+        var profileHealth = await _earthDb.Profiles
+            .AsNoTracking()
+            .Where(profile => profile.Id == accountId)
+            .Select(profile => profile.Health)
+            .FirstAsync(cancellationToken: cancellationToken);
 
         var boosts = await _earthDb.Boosts
             .AsNoTracking()
@@ -227,11 +229,15 @@ internal sealed class InventoryController : SolaceControllerBase
         }
 
         var maxPlayerHealth = Common.Utils.BoostUtils.GetMaxPlayerHealth(boosts, requestStartedOn, _catalog);
-        profile.Health += healing;
-        if (profile.Health > maxPlayerHealth)
+        profileHealth += healing;
+        if (profileHealth > maxPlayerHealth)
         {
-            profile.Health = maxPlayerHealth;
+            profileHealth = maxPlayerHealth;
         }
+
+        await _earthDb.Profiles
+            .Where(profile => profile.Id == accountId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(profile => profile.Health, profileHealth), cancellationToken);
 
         await _earthDb.SaveChangesAsync(cancellationToken);
 

@@ -10,6 +10,6 @@ $runtimesPath = Join-Path $outputDir "runtimes"
 
 if (Test-Path $runtimesPath) {
     Get-ChildItem -Path $runtimesPath -Directory | 
-        Where-Object { $_.Name -notmatch '^(win.*|osx.*|linux-x64|linux-arm64|linux-arm)$' } | 
-        Remove-Item -Recurse -Force
+    Where-Object { $_.Name -notmatch '^(win.*|osx.*|linux-x64|linux-arm64|linux-arm)$' } | 
+    Remove-Item -Recurse -Force
 }

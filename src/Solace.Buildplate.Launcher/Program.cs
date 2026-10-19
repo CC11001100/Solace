@@ -44,8 +44,8 @@ internal static partial class App
 {
     internal static AbsoluteDirectory StaticDataPath = new RelativeDirectory("staticdata").ToAbsolute();
 
-    public static readonly Version MinimumFountainBridgeVersion = new(0, 0, 2);
-    public static readonly Version MinimumBuildplateConnectorPluginVersion = new(0, 1, 0);
+    public static readonly Version MinimumFountainBridgeVersion = new(0, 2, 0);
+    public static readonly Version MinimumBuildplateConnectorPluginVersion = new(1, 0, 0);
 
     public static async Task<int> RunAsync(string[] args)
     {

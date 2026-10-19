@@ -76,26 +76,16 @@ internal sealed class Rewards
         var checkLevelUp = false;
         if (_rubies > 0 || _experiencePoints > 0)
         {
-            var profile = await earthDb.Profiles
-                .AsTracking()
-                .FirstAsync(profile => profile.Id == profileId, cancellationToken: cancellationToken);
-
-            if (_rubies > 0)
-            {
-                profile.Rubies.Earned += _rubies;
-            }
-
-            if (_experiencePoints > 0)
-            {
-                profile.Experience += _experiencePoints;
-            }
+            await earthDb.Profiles
+                .Where(profile => profile.Id == profileId)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(profile => profile.Rubies.Earned, profile => profile.Rubies.Earned + _rubies)
+                    .SetProperty(profile => profile.Experience, profile => profile.Experience + _experiencePoints), cancellationToken);
 
             if (_experiencePoints > 0)
             {
                 checkLevelUp = true;
             }
-
-            await earthDb.SaveChangesAsync(cancellationToken);
 
             results.Profile();
         }
@@ -163,7 +153,7 @@ internal sealed class Rewards
 
         if (checkLevelUp)
         {
-            await LevelUtils.CheckAndHandlePlayerLevelUpAsync(earthDb, results, profileId, currentTime, staticData);
+            await LevelUtils.CheckAndHandlePlayerLevelUpAsync(earthDb, results, profileId, currentTime, staticData, cancellationToken);
         }
     }
 

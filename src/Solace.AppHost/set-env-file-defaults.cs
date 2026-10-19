@@ -144,9 +144,9 @@ rootCommand.SetAction(async (parseResult, cancellationToken) =>
                     resultsTable.AddRow($"[cyan]{imgKey}[/]", Markup.Escape(imageSpecifier));
                     resultsTable.AddRow($"[cyan]{portKey}[/]", InternalPort.ToString());
                 }
-                catch (Exception ex)
+                catch (Exception exception)
                 {
-                    AnsiConsole.MarkupLine($"[bold red]✖ Failed to resolve digest for {projectName}:[/] [grey]{Markup.Escape(ex.Message)}[/]");
+                    AnsiConsole.MarkupLine($"[bold red]✖ Failed to resolve digest for {projectName}:[/] [grey]{Markup.Escape(exception.Message)}[/]");
                 }
             }
         });

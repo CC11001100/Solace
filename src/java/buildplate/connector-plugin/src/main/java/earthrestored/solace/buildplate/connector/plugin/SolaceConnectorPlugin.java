@@ -15,6 +15,7 @@ import earthrestored.solace.buildplate.connector.model.PlayerConnectedRequest;
 import earthrestored.solace.buildplate.connector.model.PlayerConnectedResponse;
 import earthrestored.solace.buildplate.connector.model.PlayerDisconnectedRequest;
 import earthrestored.solace.buildplate.connector.model.PlayerDisconnectedResponse;
+import earthrestored.solace.buildplate.connector.model.RequestWithInstanceId;
 import earthrestored.solace.eventbus.client.EventBusClient;
 import earthrestored.solace.eventbus.client.Publisher;
 import earthrestored.solace.eventbus.client.RequestSender;
@@ -27,8 +28,8 @@ public final class SolaceConnectorPlugin implements ConnectorPlugin {
 	private Publisher publisher;
 	private RequestSender requestSender;
 
-	private InventoryType inventoryType;
-
+	private final HashMap<String, InventoryType> playerInventoryTypes = new HashMap<>();
+	private final HashMap<String, String> playerInstanceIds = new HashMap<>();
 	private final HashMap<String, PlayerInventory> playerInventories = new HashMap<>();
 
 	@Override
@@ -55,8 +56,6 @@ public final class SolaceConnectorPlugin implements ConnectorPlugin {
 		this.queueName = connectorPluginArg.eventBusQueueName();
 		this.publisher = this.eventBusClient.addPublisher();
 		this.requestSender = this.eventBusClient.addRequestSender();
-
-		this.inventoryType = connectorPluginArg.inventoryType();
 	}
 
 	@Override
@@ -69,17 +68,27 @@ public final class SolaceConnectorPlugin implements ConnectorPlugin {
 		PlayerConnectedResponse playerConnectedResponse = EventBusHelper.doRequestResponseSync(this.requestSender,
 				this.queueName, "playerConnected", new PlayerConnectedRequest(playerLoginInfo.uuid, ""),
 				PlayerConnectedResponse.class); // TODO: join code
-		if (!playerConnectedResponse.accepted()) {
+		if (playerConnectedResponse == null || !playerConnectedResponse.accepted()) {
 			return false;
 		}
-		if (this.inventoryType != InventoryType.SYNCED && playerConnectedResponse.initialInventoryContents() == null) {
+		InventoryType inventoryType = playerConnectedResponse.inventoryType() != null
+				? playerConnectedResponse.inventoryType()
+				: InventoryType.DISCARD;
+		String instanceId = playerConnectedResponse.instanceId() != null
+				? playerConnectedResponse.instanceId()
+				: "";
+
+		if (inventoryType != InventoryType.SYNCED && playerConnectedResponse.initialInventoryContents() == null) {
 			throw new ConnectorPluginException(
 					"Bad player connected response data (missing initial inventory data for inventory type %s)"
-							.formatted(this.inventoryType.name()));
+							.formatted(inventoryType.name()));
 		}
-		this.playerInventories.put(playerLoginInfo.uuid, switch (this.inventoryType) {
+
+		this.playerInventoryTypes.put(playerLoginInfo.uuid, inventoryType);
+		this.playerInstanceIds.put(playerLoginInfo.uuid, instanceId);
+		this.playerInventories.put(playerLoginInfo.uuid, switch (inventoryType) {
 			case SYNCED ->
-				new SyncedPlayerInventory(playerLoginInfo.uuid, this.requestSender, this.publisher, this.queueName);
+				new SyncedPlayerInventory(playerLoginInfo.uuid, instanceId, this.requestSender, this.publisher, this.queueName);
 			case DISCARD -> new DiscardPlayerInventory(playerConnectedResponse.initialInventoryContents());
 			case BACKPACK -> new BackpackPlayerInventory(playerConnectedResponse.initialInventoryContents());
 		});
@@ -90,23 +99,29 @@ public final class SolaceConnectorPlugin implements ConnectorPlugin {
 	@NotNull
 	public DisconnectResponse onPlayerDisconnected(@NotNull String playerId, float health)
 			throws ConnectorPluginException {
-		InventoryResponse backpackContents = switch (this.inventoryType) {
+		InventoryType inventoryType = this.playerInventoryTypes.getOrDefault(playerId, InventoryType.DISCARD);
+		InventoryResponse backpackContents = switch (inventoryType) {
 			case SYNCED -> null;
 			case DISCARD -> null;
 			case BACKPACK ->
 				((BackpackPlayerInventory) this.getInventoryForPlayer(playerId)).getContentsAsInventoryResponse();
 		};
+		String instanceId = this.playerInstanceIds.getOrDefault(playerId, "");
 		PlayerDisconnectedRequest playerDisconnectedRequest = new PlayerDisconnectedRequest(playerId, backpackContents);
 		PlayerDisconnectedResponse playerDisconnectedResponse = EventBusHelper.doRequestResponseSync(this.requestSender,
-				this.queueName, "playerDisconnected", playerDisconnectedRequest, PlayerDisconnectedResponse.class);
+				this.queueName, "playerDisconnected", new RequestWithInstanceId<>(instanceId, playerDisconnectedRequest), PlayerDisconnectedResponse.class);
+		this.playerInventories.remove(playerId);
+		this.playerInventoryTypes.remove(playerId);
+		this.playerInstanceIds.remove(playerId);
 		return new DisconnectResponse();
 	}
 
 	@Override
 	public boolean onPlayerDead(@NotNull String playerId) throws ConnectorPluginException {
-		boolean respawn = EventBusHelper.doRequestResponseSync(this.requestSender, this.queueName, "playerDead",
-				playerId, Boolean.class);
-		return respawn;
+		String instanceId = this.playerInstanceIds.getOrDefault(playerId, "");
+		Boolean respawn = EventBusHelper.doRequestResponseSync(this.requestSender, this.queueName, "playerDead",
+				new RequestWithInstanceId<>(instanceId, playerId), Boolean.class);
+		return respawn != null && respawn;
 	}
 
 	@Override
