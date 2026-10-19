@@ -72,12 +72,15 @@ public sealed partial class SolaceIntegrationTests
         await Assert.That(tappableId).IsNotNull();
         await Assert.That(tileId).IsNotNull();
 
+        var latStr = lat.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var lonStr = lon.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
         var redeemPayload = $$"""
             {
                 "Id": "{{tappableId}}",
                 "PlayerCoordinate": {
-                    "Latitude": {{lat}},
-                    "Longitude": {{lon}}
+                    "Latitude": {{latStr}},
+                    "Longitude": {{lonStr}}
                 }
             }
             """;
